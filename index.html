@@ -1,0 +1,296 @@
+<!DOCTYPE html> 
+<html> 
+ 
+<head>
+	<meta charset="utf-8"> 
+	<meta name="viewport" content="width=device-width, initial-scale=1"> 
+	<title>eWeb</title> 
+	<link rel="stylesheet" href="http://webrtc.d2dx.com/webphone/jquery-mobile.css" />
+	<script src="http://webrtc.d2dx.com/webphone/jquery-164.js"></script>
+	<script src="http://webrtc.d2dx.com/webphone/jquery-mobile.js"></script>
+	<script src="/js/WCGapi_ff_mod.js"></script>
+	<script>
+	
+	myId = "contacts-list";
+	
+	function getParameterByName(name) {
+    	var match = RegExp('[?&]' + name + '=([^&]*)')
+    	                .exec(window.location.search);
+   		return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+	}
+	
+	$(function() {
+		var num = getParameterByName("num");
+		
+		if (num)
+			login(num);
+	});
+	
+	
+	sipdomain = "vims1.com";
+	//server = "http://12.208.176.234:9191/HaikuServlet/rest/v2";
+	server = "http://64.124.154.165:38080/HaikuServlet/rest/v2";
+	var getApiKey = function(username){ return username };
+	
+	function formatPhone(phonenum) {
+		var regexObj = /^(?:\+?1[-. ]?)?(?:\(?([0-9]{3})\)?[-. ]?)?([0-9]{3})[-. ]?([0-9]{4})$/;
+		if (regexObj.test(phonenum)) {
+			var parts = phonenum.match(regexObj);
+			var phone = "";
+			if (parts[1]) { phone += "+1 (" + parts[1] + ") "; }
+			phone += parts[2] + "-" + parts[3];
+			return phone;
+		}
+		else {
+			//invalid phone number
+			return phonenum;
+		}
+	}
+	
+	function login(num)
+	{
+	
+		self.ms = new MediaServices(server, "sip:" + num + "@vims1.com", "<<ENTER_PASSWORD>>", "audio");
+		//self.ms = new MediaServices("", "sip:" + num + "@vims1.com", "<<ENTER_PASSWORD>>", "audio");
+
+		// What happens when we get an invite
+		ms.oninvite = function(invite)
+		{
+			if (invite.call)
+			{
+				self.call = invite.call;
+				var rNum = invite.call.recipient;
+				
+				invite.call.onend = function() {
+					$.mobile.changePage($("#make-call"));
+				};
+				
+				// Format the remote user number nicely
+				var match = rNum.match(/[0-9]+/);
+				if (match.length > 0)
+					rNum = match[0];
+				rNum = formatPhone(rNum);
+				$(".remote-user").text(rNum);
+				$.mobile.changePage($("#incoming-call"));
+				
+			}
+		};
+		
+		ms.onready = function () {
+			$.mobile.changePage($("#make-call"));
+		};
+		
+		
+		$.mobile.changePage($("#logging-in"));
+		
+	}
+	
+	$(".incoming-call-answer").live("click", function() {
+		self.call.answer();
+		$.mobile.changePage($("#call"));
+		self.call.onend = function() {
+			$.mobile.changePage($("#make-call"));
+		};
+		self.call.onerror = function() {
+			$.mobile.changePage($("#make-call"));
+		};
+		
+		self.call.onaddstream = function(e) {
+			console.log("Got media stream");
+			// Don't need to do anything
+			// Audio plays automatically
+		};
+	});
+	
+	$(".incoming-call-reject").live("click", function() {
+		self.call.end();
+		$.mobile.changePage($("#make-call"));
+	});
+	
+	$(".call-hangup").live("click", function() {
+		self.call.end();
+		$.mobile.changePage($("#make-call"));
+	});
+	
+	function do_login()
+	{
+		login(username.value);
+	}
+	
+	function do_call()
+	{
+		make_call(remote_number.value);
+	}
+	
+	function make_call(num)
+	{
+	
+		$(".remote-user").text(formatPhone(num));
+		
+		self.call = ms.createCall("sip:" + num + "@vims1.com");
+		
+		self.call.onbegin = function() {
+			self.call.onend = function () {
+				$.mobile.changePage($("#make-call"));
+			};
+			$.mobile.changePage($("#call"));
+		};
+		
+		self.call.onend = function () {
+			setTimeout(function() { if ($.mobile.activePage.attr("id") == "outgoing-call-rejected") $.mobile.changePage($("#make-call"), {reverse: true});}, 2000);
+			$.mobile.changePage($("#outgoing-call-rejected"), {transition: "fade"});
+		};
+		
+		self.call.onerror = self.call.onend;
+		self.call.ring();
+		
+		$.mobile.changePage($("#outgoing-call"));
+	
+	}
+	
+	</script>
+</head> 
+
+	
+<body> 
+
+<!-- Start of first page: #one -->
+<div data-role="page" id="main" data-theme="a">
+
+	<div data-role="header">
+		<h1>Web Phone</h1>
+	</div><!-- /header -->
+
+	<div data-role="content" id="one">	
+		<h2>Welcome to webphone!</h2>
+		
+		<p>This is a softphone using the Ericsson WCG API. Enter the phone number to log in as...</p>
+
+		<p>Register as: <input type="text" id="username"/></p>
+		<button onclick="do_login();">Log In!</button> 
+	</div><!-- /content -->
+	
+	<div data-role="footer">
+		<h5>wTime 2.0</h5>
+	</div><!-- /footer -->
+</div><!-- /page one -->
+
+<!-- Start of first page: #one -->
+<div data-role="page" id="logging-in" data-theme="a">
+
+	<div data-role="header">
+		<h1>Web Phone</h1>
+	</div><!-- /header -->
+
+	<div data-role="content" id="one">	
+		<h2>Welcome to webphone!</h2>
+		
+		<p>Logging in. Please wait!</p>
+
+	</div><!-- /content -->
+	
+	<div data-role="footer">
+		<h5>wTime 2.0</h5>
+	</div><!-- /footer -->
+</div><!-- /page one -->
+
+<!-- Start of first page: #one -->
+<div data-role="page" id="make-call" data-theme="a">
+
+	<div data-role="header">
+		<h1>Web Phone</h1>
+	</div><!-- /header -->
+
+	<div data-role="content" id="one">	
+		<h2>Welcome to webphone <span id="gui_user"></span>!</h2>
+		
+		<p>Type in a number below to call</p>
+
+		<p>Phone Number: <input type="text" id="remote_number"/></p>
+		<button onclick="do_call();">Make call!</button> 
+	</div><!-- /content -->
+	
+	<div data-role="footer">
+		<h5>wTime 2.0</h5>
+	</div><!-- /footer -->
+</div><!-- /page one -->
+
+<!-- Start of third page: #popup -->
+<div data-role="page" id="incoming-call" data-theme="b">
+
+	<div data-role="header">
+		<h1>Incoming Call!</h1>
+	</div><!-- /header -->
+
+	<div data-role="content" data-theme="d">	
+		<span style="display: block; width: 100%; text-align: center"><h2><span class="remote-user">User</span> is calling!</h2></span>
+		<p><a class="incoming-call-answer" href="" data-role="button" data-inline="false" data-icon="check" data-iconpos="right" data-theme="b">Answer!</a></p>	
+		<p><a class="incoming-call-reject" href="" data-role="button" data-inline="false" data-icon="check" data-iconpos="right" data-theme="e">Reject!</a></p>	
+	</div><!-- /content -->
+	
+	<div data-role="footer">
+		<h5>eTime 2.0</h5>
+	</div><!-- /footer -->
+</div><!-- /page popup -->
+
+
+<div data-role="page" id="outgoing-call" data-theme="a">
+
+	<div data-role="header">
+		<h1>Calling <span class="outgoing-call-user">User</span></h1>
+	</div><!-- /header -->
+
+	<div data-role="content" data-theme="a">
+	<br/><br/>
+	<br/><br/><span style="display: block; width: 100%; text-align: center"><h2>Waiting for <span class="remote-user">User</span> to answer...</h2></span>
+	<br/><br/>
+		<p><a class="call-hangup" href="" data-role="button" data-inline="false" data-icon="check" data-iconpos="right" data-theme="e">Hang up</a></p>	
+	</div><!-- /content -->
+	
+	<div data-role="footer">
+		<h5>eTime 2.0</h5>
+	</div><!-- /footer -->
+</div><!-- /page popup -->
+
+
+<div data-role="page" id="outgoing-call-rejected" data-theme="a">
+
+	<div data-role="header">
+		<h1>Calling <span class="outgoing-call-user">User</span></h1>
+	</div><!-- /header -->
+
+	<div data-role="content" data-theme="a">
+	<br/><br/>
+	<br/><br/><span style="display: block; width: 100%; text-align: center"><h2><span class="remote-user">User</span> rejected the call, or failed to answer, or something else happened.</h2></span>
+	<br/><br/>
+	</div><!-- /content -->
+	
+	<div data-role="footer">
+		<h5>eTime 2.0</h5>
+	</div><!-- /footer -->
+</div><!-- /page popup -->
+
+
+<div data-role="page" id="call" data-theme="a">
+
+	<div data-role="header">
+		<h1>Call with <span class="remote-user">User</span></h1>
+	</div><!-- /header -->
+
+	<div data-role="content" data-theme="a">
+		<div id="call-audio" style="display: inline;"><br/><br/>
+			<br/><br/><span style="display: block; width: 100%; text-align: center"><h2><span class="call-time">Ongoing call...</span></h2></span>
+			<p><a class="call-hangup" href="" data-role="button" data-inline="false" data-icon="check" data-iconpos="right" data-theme="e">Hang up</a></p>	
+        	<br/><br/>
+      		<video width="0px" height="0px" style="display: none; position: absolute; top: 0px; left: 0px" id="remoteVideo" autoplay="autoplay"></video>
+		</div>
+	</div><!-- /content -->
+	
+	<div data-role="footer">
+		<h5>eTime 2.0</h5>
+	</div><!-- /footer -->
+</div><!-- /page popup -->
+
+
+</body>
+</html>
